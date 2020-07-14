@@ -11,9 +11,17 @@ class PolygonLayerOptions extends LayerOptions {
   final bool polygonCulling;
 
   /// screen space culling of polygons based on bounding box
-  PolygonLayerOptions(
-      {this.polygons = const [], this.polygonCulling = false, rebuild})
-      : super(rebuild: rebuild);
+  PolygonLayerOptions({
+    this.polygons = const [],
+    this.polygonCulling = false,
+    rebuild,
+  }) : super(rebuild: rebuild) {
+    if (polygonCulling) {
+      for (var polygon in polygons) {
+        polygon.boundingBox = LatLngBounds.fromPoints(polygon.points);
+      }
+    }
+  }
 }
 
 class Polygon {
@@ -36,10 +44,19 @@ class Polygon {
     this.borderColor = const Color(0xFFFFFF00),
     this.disableHolesBorder = false,
     this.isDotted = false,
-  }) : holeOffsetsList = null == holePointsList
+  }) : holeOffsetsList = null == holePointsList || holePointsList.isEmpty
             ? null
-            : List.generate(holePointsList.length, (_) => []) {
-    boundingBox = LatLngBounds.fromPoints(points);
+            : List.generate(holePointsList.length, (_) => []);
+}
+
+class PolygonLayerWidget extends StatelessWidget {
+  final PolygonLayerOptions options;
+  PolygonLayerWidget({@required this.options});
+
+  @override
+  Widget build(BuildContext context) {
+    final mapState = MapState.of(context);
+    return PolygonLayer(options, mapState, mapState.onMoved);
   }
 }
 
@@ -141,11 +158,9 @@ class PolygonPainter extends CustomPainter {
     if (polygonOpt.borderStrokeWidth > 0.0) {
       var borderRadius = (polygonOpt.borderStrokeWidth / 2);
 
-      final borderPaint = polygonOpt.borderStrokeWidth > 0.0
-          ? (Paint()
-            ..color = polygonOpt.borderColor
-            ..strokeWidth = polygonOpt.borderStrokeWidth)
-          : null;
+      final borderPaint = Paint()
+        ..color = polygonOpt.borderColor
+        ..strokeWidth = polygonOpt.borderStrokeWidth;
 
       if (polygonOpt.isDotted) {
         var spacing = polygonOpt.borderStrokeWidth * 1.5;
